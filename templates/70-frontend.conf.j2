@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# role: router-haproxy
+
+# Set up the peering groups for stick-tables
+peers {{ k8router_ha_group.name }}
+{% for router in k8router_ha_group.routers %}
+    peer {{ router.dns }} {{ router.ip }}:7778
+{% endfor %}
+
+# Redirect any HTTP traffic to HTTPS
+frontend HTTP
+{% for ip in k8router_frontend_ips %}
+    bind {{ ip }}:80 alpn h2,http/1.1
+{% endfor %}
+    redirect scheme https code 301 if !{ssl_fc}
+
+# This is for all traffic on the public facing HTTPS interfaces
+frontend HTTPS
+{% for ip in k8router_frontend_ips %}
+    bind {{ ip }}:443 ssl crt {{ k8router_ssl_frontend_cert_path }} alpn h2,http/1.1
+{% endfor %}
+    mode http
+    option http-keep-alive
+
+{% for cluster in k8router_k8s_clusters %}
+    acl acl-{{ cluster.name }} req_ssl_sni -i {{ cluster.api_server }}
+    use_backend {{ cluster.name }} if acl-{{ cluster.name }}
+{% endfor %}

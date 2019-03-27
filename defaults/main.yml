@@ -1,0 +1,25 @@
+---
+# Variables you MUST set
+k8router_ha_group: False
+# k8router_ha_group:
+#   name: my-ha-group
+#   dns: router-a.domain.com
+#   ip: 127.0.0.1
+
+k8router_k8s_clusters: []
+# - name: cluster1
+#   api_server: api.k8s.changeme.com
+#   ha_gateway: 127.1.2.3
+#   masters:
+#     - 127.0.0.1
+#     - 127.0.1.1
+#     - 127.0.2.1
+#   workers:
+#     - 127.1.0.1
+#     - 127.1.0.2
+#     - 127.1.0.3
+
+# Variables you may want to set
+k8router_additional_services: []
+# - name: svc1
+#   port: 1234

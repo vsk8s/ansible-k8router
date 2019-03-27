@@ -1,0 +1,13 @@
+{% for cluster in k8router_k8s_clusters %}
+
+# Configuration for cluster {{ cluster.name }}
+backend {{ cluster.name }}
+    mode tcp
+    balance source
+    stick-stable type ip size 20k peers {{ k8router_ha_group.name }}
+    stick on src
+    option httpchk GET /healthz HTTP/2
+{% for master in cluster.masters %}
+    server master{{ loop.index0 }} {{ master }}:443 check
+{% endfor %}
+{% endfor %}

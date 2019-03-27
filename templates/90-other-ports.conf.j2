@@ -1,0 +1,21 @@
+{% for service in k8router_additional_services %}
+
+# Configuration for additinal service {{ service.name }}
+frontend {{ service.name }}
+    mode tcp
+    bind :::{{ service.port }}
+    default_backend {{ service.name }}
+
+backend {{ service.name }}
+    mode tcp
+    balance source
+    hash-type consistent
+    stick-table type ip size 20k peers {{ k8router_ha_group.name }}
+    stick on src
+{% for cluster in k8router_k8s_clusters %}
+{% if cluster.name is in service.clusters %}
+{% for ip in k8router_k8s_cluster[cluster.name].workers %}
+    server server{{ loop.index0 }} {{ cluster.ip }}:{{ service.port }} check
+{% endif %}
+{% endfor %}
+{% endfor %}
