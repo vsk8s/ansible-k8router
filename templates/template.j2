@@ -1,0 +1,87 @@
+{% raw %}
+frontend HTTP
+{{- range $dummyidx, $ip := .IPs }}
+    bind     {{ $ip }}:80
+{{- end }}
+    reqadd X-Forwarded-Proto:\ http
+    reqadd X-Forwarded-Port:\ 80
+    option forwardfor
+    http-request add-header X-CLIENT-IP %[src]
+{% endraw %}
+    reqadd X-Kubernauts-Via:\ {{ ansible_fqdn }}
+{% raw %}
+
+{{ range $cert, $details := .SniList }}
+{{- range $dummyidx, $domain := $details.Domains }}
+    acl      acl-http-{{ $domain }} hdr(host) -i {{ $domain }}
+    use_backend backend-{{ index $.HostToBackend $domain }} if acl-http-{{ $domain }}
+{{- end }}
+{{- end }}
+
+frontend HTTPS
+{{- range $dummyidx, $ip := .IPs }}
+    bind     {{ $ip }}:443
+{{- end }}
+
+    mode     tcp
+    option   tcplog
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+{% endraw %}
+    acl      acl-k8s-apiserver req_ssl_sni -i {{ k8router_apiserver_hostname }}
+{% raw %}
+    use_backend K8S if acl-k8s-apiserver
+{{- range $cert, $details := .SniList }}
+{{- range $dummyidx, $host := $details.Domains }}
+    acl      acl-{{ $cert }}-{{ $host }} req_ssl_sni -i {{ $host }}
+    use_backend wrap-backend-{{ $cert }} if acl-{{ $cert }}-{{ $host }}
+{{- end }}
+{{- end }}
+{{ if ne .DefaultWildcardCert "" }}
+    default_backend wrap-backend-{{ .DefaultWildcardCert }}
+{{- end }}
+
+{{ range $cert, $details := .SniList }}
+backend wrap-backend-{{ $cert }}
+    mode     tcp
+    server   loopback  127.0.0.1:{{ $details.LocalForwardPort }} send-proxy-v2
+
+frontend wrap-frontend-{{ $cert }}
+    mode     http
+    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy
+
+    http-request set-header X-Kubernauts-TLSVersion %[ssl_fc_protocol]
+    http-request set-header X-Kubernauts-TLSCipher %[ssl_fc_cipher]
+    reqadd X-Forwarded-Proto:\ https
+    reqadd X-Forwarded-Port:\ 443
+    option forwardfor
+    http-request add-header X-CLIENT-IP %[src]
+{% endraw %}
+    reqadd X-Kubernauts-Via:\ {{ ansible_fqdn }}
+{% raw %}
+
+{{- range $dummyidx, $domain := $details.Domains }}
+    acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }}
+    use_backend backend-{{ index $.HostToBackend $domain }} if acl-https-{{ $domain }}
+{{ end }}
+{{- end }}
+{{ range $backend, $details := .BackendCombinationList }}
+backend backend-{{ $backend }}
+    mode     http
+    balance  source
+    hash-type consistent
+
+{{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
+    server   server-{{ $server.Name }} {{ $server.IP }}:80 check send-proxy
+{{- end }}
+{{- end }}
+
+backend K8S
+    mode      tcp
+    balance source
+    hash-type consistent
+{% endraw %}
+    option httpchk GET /healthz HTTP/1.1\r\nHost:\ {{ k8router_apiserver_hostname }}
+{% for server in groups[k8router_master_group] %}
+    server    {{ hostvars[server]['ansible_hostname'] }}  {{ hostvars[server]['ansible_default_ipv4']['address'] }}:443 check check-ssl crt {{ k8router_apiserver_pem }} ca-file {{ k8router_apiserver_ca }}
+{% endfor %}

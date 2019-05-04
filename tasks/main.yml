@@ -1,0 +1,24 @@
+---
+  - name: Install k8router
+    become: True
+    package:
+      name: k8router
+      state: present
+
+  - name: Configure k8router
+    become: True
+    template:
+      src: "{{ item }}.j2"
+      dest: "/etc/k8router/{{ item }}"
+      owner: root
+      group: root
+      mode: 0640
+    with_items:
+      - template
+      - config.yml
+    notify: restart k8router
+
+  - name: Assemble certificate
+    become: True
+    changed_when: False
+    shell: cat {{ k8router_apiserver_cert }} {{ k8router_apiserver_key }} > {{ k8router_apiserver_pem }}

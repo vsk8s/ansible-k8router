@@ -1,0 +1,7 @@
+---
+  - name: restart k8router
+    become: True
+    service:
+      name: k8router
+      state: restarted
+      enabled: yes
