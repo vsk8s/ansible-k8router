@@ -1,5 +1,6 @@
 {% raw %}
 frontend HTTP
+    option http-use-htx
 {{- range $dummyidx, $ip := .IPs }}
     bind     {{ $ip }}:80
 {{- end }}
@@ -14,7 +15,7 @@ frontend HTTP
 {{ range $cert, $details := .SniList }}
 {{- range $dummyidx, $domain := $details.Domains }}
     acl      acl-http-{{ $domain }} hdr(host) -i {{ $domain }}
-    use_backend backend-{{ index $.HostToBackend $domain }} if acl-http-{{ $domain }}
+    use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-http-{{ $domain }}
 {{- end }}
 {{- end }}
 
@@ -28,9 +29,11 @@ frontend HTTPS
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
 {% endraw %}
-    acl      acl-k8s-apiserver req_ssl_sni -i {{ k8router_apiserver_hostname }}
+{% for item in k8router_apiserver_hostname %}
+    acl      acl-k8s-apiserver-{{ loop.index }} req_ssl_sni -i {{ item }}
+    use_backend K8S if acl-k8s-apiserver-{{ loop.index }}
+{% endfor %}
 {% raw %}
-    use_backend K8S if acl-k8s-apiserver
 {{- range $cert, $details := .SniList }}
 {{- range $dummyidx, $host := $details.Domains }}
     acl      acl-{{ $cert }}-{{ $host }} req_ssl_sni -i {{ $host }}
@@ -48,31 +51,51 @@ backend wrap-backend-{{ $cert }}
 
 frontend wrap-frontend-{{ $cert }}
     mode     http
-    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy
+    option http-use-htx
+    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy alpn h2,http/1.1 allow-0rtt
 
+    http-request set-header X-Kubernauts-ALPN %[ssl_fc_alpn]
+    http-request set-header X-Kubernauts-HTTP %[req.ver]
     http-request set-header X-Kubernauts-TLSVersion %[ssl_fc_protocol]
     http-request set-header X-Kubernauts-TLSCipher %[ssl_fc_cipher]
+    http-request set-header X-Kubernauts-TLS13Early %[ssl_fc_has_early]
+    http-request add-header X-CLIENT-IP %[src]
     reqadd X-Forwarded-Proto:\ https
     reqadd X-Forwarded-Port:\ 443
     option forwardfor
-    http-request add-header X-CLIENT-IP %[src]
 {% endraw %}
-    reqadd X-Kubernauts-Via:\ {{ ansible_fqdn }}
+    reqadd X-Kubernauts-Edge:\ {{ ansible_fqdn }}
 {% raw %}
 
+    http-request deny if !METH_GET { ssl_fc_has_early }
+
 {{- range $dummyidx, $domain := $details.Domains }}
-    acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }}
-    use_backend backend-{{ index $.HostToBackend $domain }} if acl-https-{{ $domain }}
+    acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }} }
+    use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-https-{{ $domain }} !{ ssl_fc_alpn -i h2 }
+    use_backend backend-{{ index $.HostToBackend $domain }}-http2 if acl-https-{{ $domain }} { ssl_fc_alpn -i h2 }
 {{ end }}
 {{- end }}
 {{ range $backend, $details := .BackendCombinationList }}
-backend backend-{{ $backend }}
+backend backend-{{ $backend }}-http1
     mode     http
     balance  source
     hash-type consistent
+    option http-use-htx
+    http-reuse always
 
 {{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
     server   server-{{ $server.Name }} {{ $server.IP }}:80 check send-proxy
+{{- end }}
+
+backend backend-{{ $backend }}-http2
+    mode     http
+    balance  source
+    hash-type consistent
+    option http-use-htx
+    http-reuse never
+
+{{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
+    server   server-{{ $server.Name }} {{ $server.IP }}:81 check send-proxy proto h2 allow-0rtt
 {{- end }}
 {{- end }}
 
@@ -81,7 +104,7 @@ backend K8S
     balance source
     hash-type consistent
 {% endraw %}
-    option httpchk GET /healthz HTTP/1.1\r\nHost:\ {{ k8router_apiserver_hostname }}
+    option httpchk GET /healthz HTTP/1.1\r\nHost:\ {{ k8router_apiserver_hostname[0] }}
 {% for server in groups[k8router_master_group] %}
     server    {{ hostvars[server]['ansible_hostname'] }}  {{ hostvars[server]['ansible_default_ipv4']['address'] }}:443 check check-ssl crt {{ k8router_apiserver_pem }} ca-file {{ k8router_apiserver_ca }}
 {% endfor %}
