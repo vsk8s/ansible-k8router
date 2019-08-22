@@ -70,7 +70,7 @@ frontend wrap-frontend-{{ $cert }}
     http-request deny if !METH_GET { ssl_fc_has_early }
 
 {{- range $dummyidx, $domain := $details.Domains }}
-    acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }} }
+    acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }}
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-https-{{ $domain }} !{ ssl_fc_alpn -i h2 }
     use_backend backend-{{ index $.HostToBackend $domain }}-http2 if acl-https-{{ $domain }} { ssl_fc_alpn -i h2 }
 {{ end }}
