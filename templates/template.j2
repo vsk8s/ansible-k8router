@@ -31,7 +31,7 @@ frontend HTTPS
 {% endraw %}
 {% for item in k8router_apiserver_hostname %}
     acl      acl-k8s-apiserver-{{ loop.index }} req_ssl_sni -i {{ item }}
-    use_backend K8S if acl-k8s-apiserver-{{ loop.index }}
+    use_backend kube-apiserver if acl-k8s-apiserver-{{ loop.index }}
 {% endfor %}
 {% raw %}
 {{- range $cert, $details := .SniList }}
@@ -99,12 +99,3 @@ backend backend-{{ $backend }}-http2
 {{- end }}
 {{- end }}
 
-backend K8S
-    mode      tcp
-    balance source
-    hash-type consistent
-{% endraw %}
-    option httpchk GET /healthz HTTP/1.1\r\nHost:\ {{ k8router_apiserver_hostname[0] }}
-{% for server in groups[k8router_master_group] %}
-    server    {{ hostvars[server]['ansible_hostname'] }}  {{ hostvars[server]['ansible_default_ipv4']['address'] }}:443 check check-ssl crt {{ k8router_apiserver_pem }} ca-file {{ k8router_apiserver_ca }}
-{% endfor %}
