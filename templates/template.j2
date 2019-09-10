@@ -18,6 +18,7 @@ frontend HTTP
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-http-{{ $domain }}
 {{- end }}
 {{- end }}
+    default_backend tectonic-bridge-http
 
 frontend HTTPS
 {{- range $dummyidx, $ip := .IPs }}
@@ -41,8 +42,16 @@ frontend HTTPS
 {{- end }}
 {{- end }}
 {{ if ne .DefaultWildcardCert "" }}
-    default_backend wrap-backend-{{ .DefaultWildcardCert }}
+    default_backend tectonic-bridge-https
 {{- end }}
+
+backend tectonic-bridge-http
+    mode tcp
+    server loopback 127.0.0.1:10920 send-proxy-v2
+
+backend tectonic-bridge-https
+    mode tcp
+    server loopback 127.0.0.1:10921 send-proxy-v2
 
 {{ range $cert, $details := .SniList }}
 backend wrap-backend-{{ $cert }}
