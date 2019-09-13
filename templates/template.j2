@@ -46,7 +46,7 @@ frontend HTTPS
 {{- end }}
 
 backend tectonic-bridge-http
-    mode tcp
+    mode http
     server loopback 127.0.0.1:10920 send-proxy-v2
 
 backend tectonic-bridge-https
