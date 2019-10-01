@@ -31,13 +31,13 @@ frontend HTTPS
     tcp-request content accept if { req_ssl_hello_type 1 }
 {% endraw %}
 {% for item in k8router_apiserver_hostname %}
-    acl      acl-k8s-apiserver-{{ loop.index }} req_ssl_sni -i {{ item }}
+    acl      acl-k8s-apiserver-{{ loop.index }} req_ssl_sni -i -m str {{ item }}
     use_backend kube-apiserver if acl-k8s-apiserver-{{ loop.index }}
 {% endfor %}
 {% raw %}
 {{- range $cert, $details := .SniList }}
 {{- range $dummyidx, $host := $details.Domains }}
-    acl      acl-{{ $cert }}-{{ $host }} req_ssl_sni -i {{ $host }}
+    acl      acl-{{ $cert }}-{{ $host }} req_ssl_sni -i -m str {{ $host }}
     use_backend wrap-backend-{{ $cert }} if acl-{{ $cert }}-{{ $host }}
 {{- end }}
 {{- end }}
