@@ -61,7 +61,7 @@ backend wrap-backend-{{ $cert }}
 frontend wrap-frontend-{{ $cert }}
     mode     http
     option http-use-htx
-    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy alpn h2,http/1.1 allow-0rtt
+    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy alpn h2,http/1.1
 
     http-request set-header X-Kubernauts-ALPN %[ssl_fc_alpn]
     http-request set-header X-Kubernauts-HTTP %[req.ver]
@@ -104,7 +104,7 @@ backend backend-{{ $backend }}-http2
     http-reuse never
 
 {{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
-    server   server-{{ $server.Name }} {{ $server.IP }}:81 check send-proxy proto h2 allow-0rtt
+    server   server-{{ $server.Name }} {{ $server.IP }}:81 check send-proxy proto h2
 {{- end }}
 {{- end }}
 
