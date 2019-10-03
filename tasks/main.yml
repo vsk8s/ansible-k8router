@@ -22,3 +22,6 @@
     become: True
     changed_when: False
     shell: cat {{ k8router_apiserver_cert }} {{ k8router_apiserver_key }} > {{ k8router_apiserver_pem }}
+
+- name: Flush handlers
+  meta: flush_handlers
