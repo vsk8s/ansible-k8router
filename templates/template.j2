@@ -20,6 +20,10 @@ frontend HTTP
 {{- end }}
     default_backend tectonic-bridge-http
 
+{% endraw %}
+{# Preliminary HTTPS handler - needed to split out the kubernetes API
+   as it uses client certificates #}
+{% raw %}
 frontend HTTPS
 {{- range $dummyidx, $ip := .IPs }}
     bind     {{ $ip }}:443
@@ -35,15 +39,8 @@ frontend HTTPS
     use_backend kube-apiserver if acl-k8s-apiserver-{{ loop.index }}
 {% endfor %}
 {% raw %}
-{{- range $cert, $details := .SniList }}
-{{- range $dummyidx, $host := $details.Domains }}
-    acl      acl-{{ $cert }}-{{ $host }} req_ssl_sni -i -m str {{ $host }}
-    use_backend wrap-backend-{{ $cert }} if acl-{{ $cert }}-{{ $host }}
-{{- end }}
-{{- end }}
-{{ if ne .DefaultWildcardCert "" }}
-    default_backend tectonic-bridge-https
-{{- end }}
+    # No tectonic here - moved _behind_ the decrypt!
+    default_backend wrap-backend-https
 
 backend tectonic-bridge-http
     mode http
@@ -53,15 +50,17 @@ backend tectonic-bridge-https
     mode tcp
     server loopback 127.0.0.1:10921 send-proxy-v2
 
-{{ range $cert, $details := .SniList }}
-backend wrap-backend-{{ $cert }}
+{% endraw %}
+{# Main HTTPS handler #}
+{% raw %}
+backend wrap-backend-https
     mode     tcp
-    server   loopback  127.0.0.1:{{ $details.LocalForwardPort }} send-proxy-v2
+    server   loopback  127.0.0.1:12345 send-proxy-v2
 
-frontend wrap-frontend-{{ $cert }}
+frontend wrap-frontend-https
     mode     http
     option http-use-htx
-    bind     127.0.0.1:{{ $details.LocalForwardPort }} crt {{ $details.Path }} ssl accept-proxy alpn h2,http/1.1
+    bind     127.0.0.1:12345 {{ range $cert, $details := .SniList }} crt {{ $details.Path }}{{ end }} ssl accept-proxy alpn h2,http/1.1 allow-0rtt
 
     http-request set-header X-Kubernauts-ALPN %[ssl_fc_alpn]
     http-request set-header X-Kubernauts-HTTP %[req.ver]
@@ -78,12 +77,20 @@ frontend wrap-frontend-{{ $cert }}
 
     http-request deny if !METH_GET { ssl_fc_has_early }
 
+{{ range $cert, $details := .SniList }}
 {{- range $dummyidx, $domain := $details.Domains }}
     acl      acl-https-{{ $domain }} hdr(host) -i {{ $domain }}
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-https-{{ $domain }} !{ ssl_fc_alpn -i h2 }
     use_backend backend-{{ index $.HostToBackend $domain }}-http2 if acl-https-{{ $domain }} { ssl_fc_alpn -i h2 }
 {{ end }}
 {{- end }}
+
+    default_backend tectonic-bridge-https
+
+
+{% endraw %}
+{# Backends #}
+{% raw %}
 {{ range $backend, $details := .BackendCombinationList }}
 backend backend-{{ $backend }}-http1
     mode     http
