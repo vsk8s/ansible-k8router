@@ -47,8 +47,8 @@ backend tectonic-bridge-http
     server loopback 127.0.0.1:10920 send-proxy-v2
 
 backend tectonic-bridge-https
-    mode tcp
-    server loopback 127.0.0.1:10921 send-proxy-v2
+    mode http
+    server loopback 127.0.0.1:10921 send-proxy-v2 ssl verify none
 
 {% endraw %}
 {# Main HTTPS handler #}
