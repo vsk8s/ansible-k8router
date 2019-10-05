@@ -18,6 +18,11 @@ frontend HTTP
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-http-{{ $domain }}
 {{- end }}
 {{- end }}
+    acl      acl-regharbor hdr(host) -i registry.vis.ethz.ch
+    use_backend regharbor if acl-regharbor
+    acl      acl-rgw hdr(host) -i rgw.vis.ethz.ch
+    use_backend rgw if acl-rgw
+
     default_backend tectonic-bridge-http
 
 {% endraw %}
@@ -39,6 +44,9 @@ frontend HTTPS
     use_backend kube-apiserver if acl-k8s-apiserver-{{ loop.index }}
 {% endfor %}
 {% raw %}
+    # We also need to pass through the old kubernetes API (or deployment wont work)
+    acl      acl-k8s-tectonic-api req_ssl_sni -i -m str kube-api.vis.ethz.ch
+    use_backend K8S if acl-k8s-tectonic-api
     # No tectonic here - moved _behind_ the decrypt!
     default_backend wrap-backend-https
 
@@ -84,6 +92,10 @@ frontend wrap-frontend-https
     use_backend backend-{{ index $.HostToBackend $domain }}-http2 if acl-https-{{ $domain }} { ssl_fc_alpn -i h2 }
 {{ end }}
 {{- end }}
+    acl      acl-regharbor hdr(host) -i -m str registry.vis.ethz.ch
+    use_backend k8s-ssl-regharbor if acl-regharbor
+    acl      acl-rgw hdr(host) -i -m str rgw.vis.ethz.ch
+    use_backend k8s-ssl-rgw if acl-rgw
 
     default_backend tectonic-bridge-https
 
@@ -114,5 +126,22 @@ backend backend-{{ $backend }}-http2
     server   server-{{ $server.Name }} {{ $server.IP }}:81 check send-proxy proto h2
 {{- end }}
 {{- end }}
-
 {% endraw %}
+
+{# Legacy hosts, but in HTTP instead of TCP mode #}
+backend k8s-ssl-regharbor
+    balance source
+    hash-type consistent
+    stick-table type ip size 20k peers tcrouter_rep
+    stick on src
+    option httpchk GET / HTTP/1.1\r\nHost:\ registry.vis.ethz.ch
+    server   registry 10.233.42.80:444 send-proxy ssl sni str(registry.vis.ethz.ch) verify none check
+
+backend k8s-ssl-rgw
+    balance source
+    hash-type consistent
+    stick-table type ip size 20k peers tcrouter_rep
+    stick on src
+    option httpchk GET / HTTP/1.1\r\nHost:\ rgw.vis.ethz.ch
+    server   rgw-1 10.233.42.67:443  ssl sni str(rgw.vis.ethz.ch) verify none check
+    server   rgw-2 10.233.42.68:443  ssl sni str(rgw.vis.ethz.ch) verify none check
