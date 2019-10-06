@@ -68,7 +68,8 @@ backend wrap-backend-https
 frontend wrap-frontend-https
     mode     http
     option http-use-htx
-    bind     127.0.0.1:12345 {{ range $cert, $details := .SniList }} crt {{ $details.Path }}{{ end }} ssl accept-proxy alpn h2,http/1.1 allow-0rtt
+    bind     127.0.0.1:12345 {{ range $cert, $details := .SniList }} crt {{ $details.Path }}{{ end }} ssl accept-proxy alpn h2,http/1.1
+    # Disabled for now: allow-0rtt
 
     http-request set-header X-Kubernauts-ALPN %[ssl_fc_alpn]
     http-request set-header X-Kubernauts-HTTP %[req.ver]
