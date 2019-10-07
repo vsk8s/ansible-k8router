@@ -47,6 +47,9 @@ frontend HTTPS
     # We also need to pass through the old kubernetes API (or deployment wont work)
     acl      acl-k8s-tectonic-api req_ssl_sni -i -m str kube-api.vis.ethz.ch
     use_backend K8S if acl-k8s-tectonic-api
+    # ...and the Tectonic backend as it hardcodes the CA in it's kubeconfig
+    acl      acl-k8s-tectonic req_ssl_sni -i -m str kube.vis.ethz.ch
+    use_backend TConsole if acl-k8s-tectonic
     # No tectonic here - moved _behind_ the decrypt!
     default_backend wrap-backend-https
 
