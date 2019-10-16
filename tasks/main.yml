@@ -2,8 +2,11 @@
   - name: Install k8router
     become: True
     package:
-      name: k8router
+      name: "{{ item }}"
       state: present
+    with_items:
+      - k8router
+      - ipvsadm
 
   - name: Configure k8router
     become: True
@@ -17,6 +20,13 @@
       - template
       - config.yml
     notify: restart k8router
+
+  - name: Activate IPVS conntrack
+    become: True
+    sysctl:
+      name: net.ipv4.vs.conntrack
+      value: 1
+      sysctl_file: /etc/sysctl.d/80-k8router.conf
 
   - name: Assemble certificate
     become: True
