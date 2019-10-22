@@ -2,11 +2,8 @@
   - name: Install k8router
     become: True
     package:
-      name: "{{ item }}"
+      name: k8router
       state: present
-    with_items:
-      - k8router
-      - ipvsadm
 
   - name: Configure k8router
     become: True
