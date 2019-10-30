@@ -86,8 +86,8 @@ backend backend-{{ $backend }}-http1
     option http-use-htx
     http-reuse always
 
-{{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
-    server   server-{{ $server.Name }} {{ $server.IP }}:80 check send-proxy
+{{- range $i, $server := index $.BackendCombinationList $backend }}
+    server   server-{{ $server.Name }}-{{ $i }} {{ $server.IP }}:80 check send-proxy
 {{- end }}
 
 backend backend-{{ $backend }}-http2
@@ -97,8 +97,8 @@ backend backend-{{ $backend }}-http2
     option http-use-htx
     http-reuse never
 
-{{- range $dummyidx, $server := index $.BackendCombinationList $backend }}
-    server   server-{{ $server.Name }} {{ $server.IP }}:81 check send-proxy proto h2 allow-0rtt
+{{- range $i, $server := index $.BackendCombinationList $backend }}
+    server   server-{{ $server.Name }}-{{ $i }} {{ $server.IP }}:81 check send-proxy proto h2 allow-0rtt
 {{- end }}
 {{- end }}
 
