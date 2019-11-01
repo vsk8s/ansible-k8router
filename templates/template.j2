@@ -14,7 +14,7 @@ frontend HTTP
 
 {{ range $cert, $details := .SniList }}
 {{- range $dummyidx, $domain := $details.Domains }}
-    acl      acl-http-{{ $domain }} hdr(host) -i {{ $domain }}
+    acl      acl-http-{{ $domain }} hdr(host) -i ^{{ replace $domain "." "\\." }}(:80)?$
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-http-{{ $domain }}
 {{- end }}
 {{- end }}
