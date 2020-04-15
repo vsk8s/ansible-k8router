@@ -37,9 +37,11 @@ frontend HTTPS
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
 {% endraw %}
-{% for item in k8router_apiserver_hostname %}
-    acl      acl-k8s-apiserver-{{ loop.index }} req_ssl_sni -i -m str {{ item }}
-    use_backend kube-apiserver if acl-k8s-apiserver-{{ loop.index }}
+{% for cluster in k8router_clusters %}
+{% for item in cluster.apiserver_hostname %}
+    acl      acl-k8s-apiserver-{{ item | replace('.', '-' }} req_ssl_sni -i -m str {{ item }}
+    use_backend kube-apiserver-{{ cluster.name }} if acl-k8s-apiserver-{{ item | replace('.', '-') }}
+{% endfor %}
 {% endfor %}
 {% raw %}
     # We also need to pass through the old kubernetes API (or deployment wont work)
