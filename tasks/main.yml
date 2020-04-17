@@ -22,7 +22,7 @@
     become: True
     changed_when: False
     shell: cat {{ item.apiserver_cert }} {{ item.apiserver_key }} > {{ item.apiserver_pem }}
-    with_items: k8router_clusters
+    with_items: "{{ k8router_clusters }}"
 
   - name: Flush handlers
     meta: flush_handlers

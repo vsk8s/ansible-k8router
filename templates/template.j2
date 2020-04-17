@@ -39,7 +39,7 @@ frontend HTTPS
 {% endraw %}
 {% for cluster in k8router_clusters %}
 {% for item in cluster.apiserver_hostname %}
-    acl      acl-k8s-apiserver-{{ item | replace('.', '-' }} req_ssl_sni -i -m str {{ item }}
+    acl      acl-k8s-apiserver-{{ item | replace('.', '-') }} req_ssl_sni -i -m str {{ item }}
     use_backend kube-apiserver-{{ cluster.name }} if acl-k8s-apiserver-{{ item | replace('.', '-') }}
 {% endfor %}
 {% endfor %}
