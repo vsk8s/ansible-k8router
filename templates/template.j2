@@ -82,9 +82,6 @@ frontend wrap-frontend-https
     acl      acl-rgw hdr(host) -i -m str rgw.vis.ethz.ch
     use_backend k8s-ssl-rgw if acl-rgw
 
-    default_backend tectonic-bridge-https
-
-
 {% endraw %}
 {# Backends #}
 {% raw %}
