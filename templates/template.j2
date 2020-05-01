@@ -110,12 +110,3 @@ backend backend-{{ $backend }}-http2
 {{- end }}
 {% endraw %}
 
-{# Other hosts, but in HTTP instead of TCP mode #}
-backend k8s-ssl-rgw
-    balance source
-    hash-type consistent
-    stick-table type ip size 20k peers tcrouter_rep
-    stick on src
-    option httpchk GET / HTTP/1.1\r\nHost:\ rgw.vis.ethz.ch
-    server   rgw-1 10.233.42.67:443  ssl sni str(rgw.vis.ethz.ch) verify none check
-    server   rgw-2 10.233.42.68:443  ssl sni str(rgw.vis.ethz.ch) verify none check
