@@ -18,8 +18,6 @@ frontend HTTP
     use_backend backend-{{ index $.HostToBackend $domain }}-http1 if acl-http-{{ $domain }}
 {{- end }}
 {{- end }}
-    acl      acl-rgw hdr(host) -i rgw.vis.ethz.ch
-    use_backend rgw if acl-rgw
 
 {% endraw %}
 {# Preliminary HTTPS handler - needed to split out the kubernetes API
@@ -79,8 +77,6 @@ frontend wrap-frontend-https
     use_backend backend-{{ index $.HostToBackend $domain }}-http2 if acl-https-{{ $domain }} { ssl_fc_alpn -i h2 }
 {{ end }}
 {{- end }}
-    acl      acl-rgw hdr(host) -i -m str rgw.vis.ethz.ch
-    use_backend k8s-ssl-rgw if acl-rgw
 
 {% endraw %}
 {# Backends #}
