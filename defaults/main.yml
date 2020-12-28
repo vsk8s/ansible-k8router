@@ -1,9 +1,11 @@
 ---
-k8router_master_group: kube-master
-k8router_apiserver_hostname:
-  - "{{ kubernetes_ha_domain_intern }}"
-k8router_apiserver_cert: ""
-k8router_apiserver_key: ""
-k8router_apiserver_ca: ""
-k8router_apiserver_pem: "{{ k8router_apiserver_cert }}.pem"
+
+k8router_clusters:
+  - name: cluster
+    apiserver_hostname:
+      - "{{ kubernetes_ha_domain_intern }}"
+    apiserver_cert: "{{ k8router_apiserver_cert }}"
+    apiserver_key: "{{ k8router_apiserver_key }}"
+    apiserver_pem: "{{ k8router_apiserver_pem }}"
+
 k8router_config: []
