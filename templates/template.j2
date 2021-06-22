@@ -66,10 +66,17 @@ frontend wrap-frontend-https
     option forwardfor
 {% endraw %}
     http-request add-header X-Kubernauts-Edge {{ ansible_fqdn }}
-{% raw %}
-
     http-request deny if !METH_GET { ssl_fc_has_early }
 
+{% for cluster in k8router_clusters %}
+{% if cluster.http_expose %}
+    acl      acl-https-{{ cluster.http_expose_url }} hdr_reg(host) -i ^{{ cluster.http_expose_url | replace(".", "\\.") }}(:443)?$
+    use_backend {{ cluster.name }}-https if acl-https-{{ cluster.http_expose_url }}
+
+{% endif %}
+{% endfor %}
+
+{% raw %}
 {{ range $cert, $details := .SniList }}
 {{- range $dummyidx, $domain := $details.Domains }}
     acl      acl-https-{{ $domain }} hdr_reg(host) -i ^{{ replace $domain "." "\\." }}(:443)?$
@@ -105,4 +112,3 @@ backend backend-{{ $backend }}-http2
 {{- end }}
 {{- end }}
 {% endraw %}
-

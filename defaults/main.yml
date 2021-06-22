@@ -7,5 +7,7 @@ k8router_clusters:
     apiserver_cert: "{{ k8router_apiserver_cert }}"
     apiserver_key: "{{ k8router_apiserver_key }}"
     apiserver_pem: "{{ k8router_apiserver_pem }}"
+    http_expose: False
+    http_expose_url: tls.vsk8s.k8s
 
 k8router_config: []
